@@ -1,0 +1,36 @@
+{
+    "hubs": [
+        {
+            "id" : "1",
+            "name": "big one",
+            "owner": "email@address.com"
+        },
+        {
+            "id" : "2",
+            "name": "small one",
+            "owner": "email@address.com"
+        }
+    ],
+    "bots": [
+        {
+            "token": "xxx-xxxx-xxxx",
+            "hole_id": "1"
+        },
+        {
+            "token": "xxx-xxxx-xxxx",
+            "hole_id": "1"
+        },
+        {
+            "token": "xxx-xxxx-xxxx",
+            "hole_id": "1"
+        },
+        {
+            "token": "xxx-xxxx-xxxx",
+            "hole_id": "2"
+        },
+        {
+            "token": "xxx-xxxx-xxxx",
+            "hole_id": "2"
+        }
+    ]
+}
