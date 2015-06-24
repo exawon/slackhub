@@ -56,7 +56,7 @@ function startHubBot(hub, token) {
                 var teamNames = makeHubTeamNames(bot, channel);
                 var be = (teamNames.indexOf(',') > 0) ? ' are ' : ' is ';
                 botMessage(bot, channel, teamNames + be + 'in #' + channel.name);
-                hubBotMessage(bot, channel, 'Team ' + bot.team.name + ' is joined #' + channel.name);
+                hubBotMessage(bot, channel.name, 'Team ' + bot.team.name + ' is joined #' + channel.name);
                 break;
 
             case 'channel_left':
@@ -65,16 +65,11 @@ function startHubBot(hub, token) {
             case 'group_left':
             case 'group_close':
             case 'group_archive':
-                hubBotMessage(bot, channel, 'Team ' + bot.team.name + 'is left #' + channel.name);
-                break;
-
-            case 'channel_rename':
-            case 'group_rename':
-                // not implemented yet
+                hubBotMessage(bot, channel.name, 'Team ' + bot.team.name + 'is left #' + channel.name);
                 break;
 
             case 'user_typing':
-                hubBotTyping(bot, channel);
+                hubBotTyping(bot, channel.name);
                 break;
 
             case 'message':
@@ -88,18 +83,18 @@ function startHubBot(hub, token) {
                         botCommand(bot, channel, data.text);
                     }
                     else {
-                        hubUserMessage(bot, channel, user, data.text);
+                        hubUserMessage(bot, channel.name, user, data.text);
                     }
                     break;
                 }
 
                 switch (data.subtype) {
                     case 'me_message':
-                        hubUserMessage(bot, channel, user, italicText(data.text));
+                        hubUserMessage(bot, channel.name, user, italicText(data.text));
                         break;
 
                     case 'file_share':
-                        hubUserMessage(bot, channel, user, data.file.permalink_public);
+                        hubUserMessage(bot, channel.name, user, data.file.permalink_public);
                         break;
 
                     case 'file_mention':
@@ -120,8 +115,14 @@ function startHubBot(hub, token) {
                     case 'group_join':
                     case 'group_leave':
                         if (data.text) {
-                            hubBotMessage(bot, channel, data.text);
+                            hubBotMessage(bot, channel.name, data.text);
                         }
+                        break;
+
+                    case 'channel_name':
+                        botCommand(bot, channel, '@ teams');
+                        hubBotMessage(bot, data.old_name, 'Team ' + bot.team.name + ' left');
+                        hubBotMessage(bot, data.name, 'Team ' + bot.team.name + ' joined');
                         break;
                 }
                 break;
@@ -138,26 +139,17 @@ function botCommand(bot, channel, text) {
         case 'teams':
             var teamNames = makeHubTeamNames(bot, channel);
             var be = (teamNames.indexOf(',') > 0) ? ' are' : ' is';
-            botMessage(bot, channel, teamNames + be + ' in the channel');
+            botMessage(bot, channel, 'Team ' + teamNames + be + ' in the channel');
             break;
 
-        case 'users':
-            var userNames = '';
-            var delim = '';
-            var hubBots = bot.hub.bots;
-            for (var i in hubBots) {
-                var hubChannel = hubBots[i].channelNameMap[channel.name];
-                if (hubBots[i] != bot && isBotInChannel(hubBots[i], hubChannel)) {
-                    userNames += delim + 'Team ' + hubBots[i].team.name + ': ';
-                    userNames += makeUserNamesInChannel(hubBots[i], hubChannel);
-                    delim = '\n';
-                }
-            }
-            botMessage(bot, channel, userNames);
+        case 'members':
+            var userNames = makeHubUserNames(bot, channel);
+            var be = (userNames.indexOf(',') > 0) ? ' are' : ' is';
+            botMessage(bot, channel, userNames + be + ' in the channel');
             break;
 
         default:
-            var help = package.name + ' ' + package.version + ' Commands: `teams`, `users`';
+            var help = package.name + ' ' + package.version + ' Commands: `teams`, `members`';
             botMessage(bot, channel, help);
             break;
     }
@@ -165,42 +157,38 @@ function botCommand(bot, channel, text) {
 
 function makeHubTeamNames(bot, channel) {
     var teamNames = '';
-    var hubBots = bot.hub.bots;
     var delim = '';
-    for (var i in hubBots) {
-        if (hubBots[i] != bot && isBotInChannel(hubBots[i], channel)) {
-            teamNames += delim + hubBots[i].team.name;
-            delim = ', ';
-        }
-    }
+    foreachHubBots(bot, channel.name, function (hubBot, hubChannel) {
+        teamNames += delim + hubBot.team.name;
+        delim = ', ';
+    });
 
     if (teamNames == '') {
         return 'No team';
     }
-    else {
-        return teamNames;
-    }
+
+    return teamNames;
 }
 
-function makeUserNamesInChannel(bot, channel) {
+function makeHubUserNames(bot, channel) {
     var userNames = '';
     var delim = '';
-    var users = channel.members;
-    for (var i in users) {
-        var user = bot.userIdMap[users[i]];
-        if (!user.deleted) {
-            var active = (bot.activeUsers.indexOf(user.id) > -1) ? '*' : '';
-            userNames += delim + active + (user.real_name || user.name) + active;
-            delim = ', ';
+    foreachHubBots(bot, channel.name, function (hubBot, hubChannel) {
+        var members = hubChannel.members;
+        for (var i in members) {
+            var user = hubBot.userIdMap[members[i]];
+            if (!user.deleted) {
+                userNames += delim + hubUserName(hubBot, user);
+                delim = ', ';
+            }
         }
-    }
+    });
 
     if (userNames == '') {
-        return 'No user';
+        return 'No member from other team';
     }
-    else {
-        return userNames;
-    }
+
+    return userNames;
 }
 
 function isBotInChannel(bot, channel) {
@@ -232,17 +220,17 @@ function botMessage(bot, channel, text) {
     });
 }
 
-function hubBotTyping(inBot, inChannel) {
-    foreachHubBots(inBot, inChannel, function(outBot, outChannel) {
-        outBot.send('typing', {
+function hubBotTyping(bot, channelName) {
+    foreachHubBots(bot, channelName, function(hubBot, outChannel) {
+        hubBot.send('typing', {
             channel: outChannel.id,
         })
     });
 
 }
 
-function fromTeamText(bot) {
-    return ' (from ' + bot.team.name + ')';
+function hubUserName(bot, user) {
+    return (user.real_name || user.name) + ' (from ' + bot.team.name + ')';
 }
 
 function transitLink(bot, text) {
@@ -276,7 +264,7 @@ function transitLink(bot, text) {
 
             case '@':
                 var user = bot.userIdMap[link.substr(1)];
-                transited += '*' + (user.real_name || user.name) + fromTeamText(bot) + '*';
+                transited += '*' + hubUserName(bot, user) + '*';
                 break;
 
             case '#':
@@ -297,25 +285,26 @@ function transitLink(bot, text) {
     return transited + text;
 }
 
-function hubBotMessage(inBot, inChannel, text) {
-    text = transitLink(inBot, text);
+function hubBotMessage(bot, channelName, text) {
+    text = transitLink(bot, text);
 
-    foreachHubBots(inBot, inChannel, function(outBot, outChannel) {
-        outBot.send('message', {
+    foreachHubBots(bot, channelName, function(hubBot, outChannel) {
+        hubBot.send('message', {
             channel: outChannel.id,
             text: italicText(text)
         });
     });
 }
 
-function hubUserMessage(inBot, inChannel, user, text) {
-    text = transitLink(inBot, text);
+function hubUserMessage(bot, channelName, user, text) {
+    var userName = hubUserName(bot, user);
+    text = transitLink(bot, text);
 
-    foreachHubBots(inBot, inChannel, function(outBot, outChannel) {
-        outBot.api('chat.postMessage', {
+    foreachHubBots(bot, channelName, function(hubBot, outChannel) {
+        hubBot.api('chat.postMessage', {
             channel: outChannel.id,
             text: text,
-            username: (user.real_name || user.name) + fromTeamText(inBot),
+            username: userName,
             as_user: false,
             link_names: 1,
             unfurl_links: true,
@@ -325,18 +314,18 @@ function hubUserMessage(inBot, inChannel, user, text) {
     });
 }
 
-function foreachHubBots(inBot, inChannel, func) {
-    for (var i in inBot.hub.bots) {
-        var outBot = inBot.hub.bots[i];
-        if (!outBot.ws || outBot == inBot) {
+function foreachHubBots(bot, channelName, func) {
+    for (var i in bot.hub.bots) {
+        var hubBot = bot.hub.bots[i];
+        if (!hubBot.ws || hubBot == bot) {
             continue;
         }
 
-        var outChannel = outBot.channelNameMap[inChannel.name];
-        if (!isBotInChannel(outBot, outChannel)) {
+        var outChannel = hubBot.channelNameMap[channelName];
+        if (!isBotInChannel(hubBot, outChannel)) {
             continue;
         }
 
-        func(outBot, outChannel);
+        func(hubBot, outChannel);
     }
 }
