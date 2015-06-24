@@ -48,24 +48,20 @@ function startHubBot(hub, token) {
 
         switch (data.type) {
             case 'channel_joined':
-            case 'channel_created':
             case 'channel_unarchive':
             case 'group_joined':
-            case 'group_open':
             case 'group_unarchive':
-                var teamNames = makeHubTeamNames(bot, channel);
-                var be = (teamNames.indexOf(',') > 0) ? ' are ' : ' is ';
-                botMessage(bot, channel, teamNames + be + 'in #' + channel.name);
-                hubBotMessage(bot, channel.name, 'Team ' + bot.team.name + ' is joined #' + channel.name);
+                botCommand(bot, channel, '@ teams');
+                hubJoinedMessage(bot, channel.name);
                 break;
 
             case 'channel_left':
-            case 'channel_deleted':
             case 'channel_archive':
+            case 'channel_deleted':
             case 'group_left':
-            case 'group_close':
             case 'group_archive':
-                hubBotMessage(bot, channel.name, 'Team ' + bot.team.name + 'is left #' + channel.name);
+            case 'group_close':
+                hubLeftMessage(bot, channel.name);
                 break;
 
             case 'user_typing':
@@ -120,9 +116,10 @@ function startHubBot(hub, token) {
                         break;
 
                     case 'channel_name':
+                    case 'group_name':
                         botCommand(bot, channel, '@ teams');
-                        hubBotMessage(bot, data.old_name, 'Team ' + bot.team.name + ' left');
-                        hubBotMessage(bot, data.name, 'Team ' + bot.team.name + ' joined');
+                        hubLeftMessage(bot, data.old_name);
+                        hubJoinedMessage(bot, data.name);
                         break;
                 }
                 break;
@@ -283,6 +280,14 @@ function transitLink(bot, text) {
         }
     }
     return transited + text;
+}
+
+function hubJoinedMessage(bot, channelName) {
+    hubBotMessage(bot, channelName, 'Team ' + bot.team.name + ' is joined #' + channelName);
+}
+
+function hubLeftMessage(bot, channelName) {
+    hubBotMessage(bot, channelName, 'Team ' + bot.team.name + ' is left #' + channelName);
 }
 
 function hubBotMessage(bot, channelName, text) {
