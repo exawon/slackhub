@@ -23,8 +23,8 @@ Node.js
 ## Usage
 
 - It will be shared **among same name channels** while the bot is staying.
-- Just invite the bot to a public channel or private group when you want to share.
-- Just kick the bot when you want to stop sharing.
+- Invite the bot to a public channel or private group when you want to share.
+- Kick the bot when you want to stop sharing.
 - Mention the bot for the hints of commands.  
 
 ## Unability
