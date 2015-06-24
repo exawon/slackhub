@@ -24,7 +24,7 @@ Node.js
 
 - It will be shared **among same name channels** while the bot is staying.
 - Invite the bot to a public channel or private group when you want to share.
-- Kick the bot when you want to stop sharing.
+- Kick the bot from the channel when you want to stop sharing.
 - Mention the bot for the hints of commands.  
 
 ## Unability
