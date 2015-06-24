@@ -29,14 +29,14 @@ SlackBot.prototype.rtmStart = function() {
         this.channelIdMap = {};
         this.channelNameMap = {};
 
-        arrayToMap(data.users, this.userIdMap, 'id');
-        arrayToMap(data.users, this.userNameMap, 'name');
-        arrayToMap(data.bots, this.userIdMap, 'id');
-        arrayToMap(data.bots, this.userNameMap, 'name');
-        arrayToMap(data.channels, this.channelIdMap, 'id');
-        arrayToMap(data.channels, this.channelNameMap, 'name');
-        arrayToMap(data.groups, this.channelIdMap, 'id');
-        arrayToMap(data.groups, this.channelNameMap, 'name');
+        mapFromArray(this.userIdMap, 'id', data.users);
+        mapFromArray(this.userNameMap, 'name', data.users);
+        mapFromArray(this.userIdMap, 'id', data.bots);
+        mapFromArray(this.userNameMap, 'name', data.bots);
+        mapFromArray(this.channelIdMap, 'id', data.channels);
+        mapFromArray(this.channelNameMap, 'name', data.channels);
+        mapFromArray(this.channelIdMap, 'id', data.groups);
+        mapFromArray(this.channelNameMap, 'name', data.groups);
 
         try {
             this.emit('start');
@@ -89,6 +89,8 @@ SlackBot.prototype.updateData = function(data) {
 
         case 'channel_left':
             channel.is_member = false;
+            var i = channel.members.indexOf(this.self.id);
+            channel.members.slice(i, 1);
             break;
 
         case 'group_left':
@@ -118,17 +120,6 @@ SlackBot.prototype.updateData = function(data) {
             this.channelNameMap[channel.name] = null;
             break;
 
-        case 'channel_left':
-        case 'group_left':
-            if (channel.is_channel) {
-                channel.is_member = false;
-            }
-            var i = channel.members.indexOf(bot.self.id);
-            if (i > -1) {
-                channel.members.slice(i, 1);
-            }
-            break;
-
         case 'presence_change':
             var i = this.activeUsers.indexOf(data.user);
             if (data.presence == 'active') {
@@ -142,16 +133,47 @@ SlackBot.prototype.updateData = function(data) {
                 }
             }
             break;
+
+        case 'message':
+            switch (data.subtype) {
+                case 'channel_join':
+                case 'group_join':
+                    var userId = extractUserId(data.text);
+                    channel.members.push(userId);
+                    break;
+
+                case 'channel_leave':
+                case 'group_leave':
+                    var userId = extractUserId(data.text);
+                    var i = channel.members.indexOf(userId);
+                    channel.members.slice(i, 1);
+                    break;
+            }
     }
 
     if (typeof data.user == 'object') {
-        mapToMap(data.user, this.userIdMap[data.user.id]);
+        if (!updateMapData(this.userIdMap, data.user.id, data.user)) {
+            this.userIdMap[data.user.id] = data.user;
+            this.userNameMap[data.user.name] = data.user;
+        }
     }
     if (typeof data.bot == 'object') {
-        mapToMap(data.bot, this.userIdMap[data.bot.id]);
+        if (!updateMapData(this.userIdMap, data.bot.id, data.bot)) {
+            this.userIdMap[data.bot.id] = data.bot;
+            this.userNameMap[data.bot.name] = data.bot;
+        }
     }
     if (typeof data.channel == 'object') {
-        mapToMap(data.channel, this.channelIdMap[data.channel.id]);
+        if (!updateMapData(this.channelIdMap, data.channel.id, data.channel)) {
+            this.channelIdMap[data.channel.id] = data.channel;
+            this.channelNameMap[data.channel.name] = data.channel;
+        }
+    }
+    if (typeof data.group == 'object') {
+        if (!updateMapData(this.channelIdMap, data.channel.id, data.channel)) {
+            this.channelIdMap[data.group.id] = data.group;
+            this.channelNameMap[data.group.name] = data.group;
+        }
     }
 }
 
@@ -159,8 +181,14 @@ SlackBot.prototype.getChannel = function(data) {
     if (typeof data.channel == 'object') {
         return this.channelIdMap[data.channel.id];
     }
-    else if (typeof data.channel != 'undefined') {
+    else if (data.channel) {
         return this.channelIdMap[data.channel];
+    }
+    else if (typeof data.group == 'object') {
+        return this.channelIdMap[data.group.id];
+    }
+    else if (data.group) {
+        return this.channelIdMap[data.group];
     }
 }
 
@@ -168,8 +196,14 @@ SlackBot.prototype.getUser = function(data) {
     if (typeof data.user == 'object') {
         return this.userIdMap[data.user.id];
     }
-    else if (typeof data.channel != 'undefined') {
+    else if (data.user) {
         return this.userIdMap[data.user];
+    }
+    else if (typeof data.bot == 'object') {
+        return this.userIdMap[data.bot.id];
+    }
+    else if (data.bot) {
+        return this.userIdMap[data.bot];
     }
 }
 
@@ -186,21 +220,22 @@ SlackBot.prototype.api = function(method, payload) {
     payload.token = this.token;
 
     return new vow.Promise(function(resolve, reject) {
-        var url = 'https://slack.com/api/' + method+ '?' + querystring.stringify(payload);
+        var url = 'https://slack.com/api/' + method + '?' + querystring.stringify(payload);
         request.get(url, function(err, request, body) {
             if (err) {
                 reject(err);
                 return;
             }
 
-            body = JSON.parse(body);
-            console.log(this.tag(), '<<<', method, body);
+            var data = JSON.parse(body);
+            console.log(this.tag(), '<<<', method, data);
 
-            if (body.ok) {
-                resolve(body);
+            if (data.ok) {
+                this.updateData(data);
+                resolve(data);
             }
             else {
-                reject(body);
+                reject(data);
             }
         }.bind(this));
     }.bind(this));
@@ -215,17 +250,35 @@ function find(array, params) {
     }
 }
 
-function arrayToMap(array, map, keyname) {
+function mapFromArray(map, keyname, array) {
     for (var i in array) {
         var item = array[i];
         map[item[keyname]] = item;
     }
 }
 
-function mapToMap(source, target) {
-    for (var key in source) {
-        target[key] = source[key];
+function updateMapData(map, key, data) {
+    var mapData = map[key];
+    if (mapData) {
+        for (var i in data) {
+            mapData[i] = data[i];
+        }
+        return true;
     }
+}
+
+function extractUserId(text) {
+    var left = text.indexOf('<@');
+    if (left < 0) {
+        return;
+    }
+
+    var right = text.indexOf('|', left + 2);
+    if (right < 0) {
+        return;
+    }
+
+    return text.substring(left + 2, right);
 }
 
 module.exports = SlackBot;
