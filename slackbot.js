@@ -12,6 +12,12 @@ function SlackBot(token) {
 
 util.inherits(SlackBot, EventEmitter);
 
+SlackBot.prototype.tag = function () {
+    if (this.self && this.team) {
+        return this.team.name + '/' + this.self.name;
+    }
+}
+
 SlackBot.prototype.rtmStart = function() {
     this.api('rtm.start', {}).then(function(data) {
         this.url = data.url;
@@ -37,7 +43,7 @@ SlackBot.prototype.rtmStart = function() {
             this.connect();
         }
         catch (e) {
-            console.log(e);
+            console.log(this.tag(), '!!!', e);
         }
     }.bind(this));
 };
@@ -48,11 +54,11 @@ SlackBot.prototype.connect = function() {
     this.ws.on('message', function(data) {
         try {
             data = JSON.parse(data);
-            console.log('<<<', 'event.' + data.type, data);
+            console.log(this.tag(), '<<<', data.type, data);
             this.updateData(data);
             this.emit('event', data);
         } catch (e) {
-            console.log('!!!', e);
+            console.log(this.tag(), '!!!', e);
         }
     }.bind(this));
 };
@@ -61,6 +67,26 @@ SlackBot.prototype.updateData = function(data) {
     var channel = this.getChannel(data);
 
     switch (data.type) {
+        case 'team_rename':
+            this.team.name = data.name;
+            break;
+
+        case 'team_domain_change':
+            this.team.domain = data.domain;
+            break;
+
+        case 'email_domain_change':
+            this.team.email_domain = data.email_domain;
+            break;
+
+        case 'team_pref_change':
+            this.team.pref[data.name] = data.value;
+            break;
+
+        case 'team_plan_change':
+            this.team.plan = data.plan;
+            break;
+
         case 'channel_left':
             channel.is_member = false;
             break;
@@ -150,17 +176,17 @@ SlackBot.prototype.getUser = function(data) {
 SlackBot.prototype.send = function(type, payload) {
     payload.id = new Date().getTime();
     payload.type = type;
-    console.log('>>>', type, payload);
+    console.log(this.tag(), '>>>', type, payload);
     this.ws.send(JSON.stringify(payload));
 }
 
-SlackBot.prototype.api = function(methodName, payload) {
-    console.log('>>>', methodName, payload);
+SlackBot.prototype.api = function(method, payload) {
+    console.log(this.tag(), '>>>', method, payload);
 
     payload.token = this.token;
 
     return new vow.Promise(function(resolve, reject) {
-        var url = 'https://slack.com/api/' + methodName + '?' + querystring.stringify(payload);
+        var url = 'https://slack.com/api/' + method+ '?' + querystring.stringify(payload);
         request.get(url, function(err, request, body) {
             if (err) {
                 reject(err);
@@ -168,17 +194,16 @@ SlackBot.prototype.api = function(methodName, payload) {
             }
 
             body = JSON.parse(body);
-            //console.log('<<<', methodName, body);
+            console.log(this.tag(), '<<<', method, body);
 
             if (body.ok) {
                 resolve(body);
             }
             else {
                 reject(body);
-                console.log(body);
             }
-        });
-    });
+        }.bind(this));
+    }.bind(this));
 };
 
 function find(array, params) {
