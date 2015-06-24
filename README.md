@@ -13,7 +13,7 @@ Node.js
 
 ## Configuration
 
-1. Copy config_example.json to *config.json*.
+1. Copy config_example.json to **config.json**.
 1. Visit the bot integration page of each team.  
   https://**YOURTEAMS**.slack.com/services/new/bot
 1. Add a new bot for each team to share channels.
