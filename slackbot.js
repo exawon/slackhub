@@ -13,9 +13,9 @@ function SlackBot(token) {
 util.inherits(SlackBot, EventEmitter);
 
 SlackBot.prototype.tag = function () {
-    if (this.self && this.team) {
-        return this.team.name + '/' + this.self.name;
-    }
+    var teamName = (this.team ? this.team.name : undefined);
+    var selfName = (this.self ? this.self.name : undefined);
+    return '\n' + teamName + '/' + selfName;
 }
 
 SlackBot.prototype.rtmStart = function() {

@@ -31,6 +31,7 @@ for (var i in config.hubs) {
     hub.bots = [];
     hubMap[hub.id] = hub;
 }
+
 for (var i in config.bots) {
     var bot = config.bots[i];
     var hub = hubMap[bot.hub_id];
