@@ -14,23 +14,23 @@
     "bots": [
         {
             "token": "xxx-xxxx-xxxx",
-            "hole_id": "1"
+            "hub_id": "1"
         },
         {
             "token": "xxx-xxxx-xxxx",
-            "hole_id": "1"
+            "hub_id": "1"
         },
         {
             "token": "xxx-xxxx-xxxx",
-            "hole_id": "1"
+            "hub_id": "1"
         },
         {
             "token": "xxx-xxxx-xxxx",
-            "hole_id": "2"
+            "hub_id": "2"
         },
         {
             "token": "xxx-xxxx-xxxx",
-            "hole_id": "2"
+            "hub_id": "2"
         }
     ]
 }
