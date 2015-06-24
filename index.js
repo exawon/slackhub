@@ -82,13 +82,18 @@ function startHubBot(hub, token) {
                     break;
                 }
 
-                switch (data.subtype) {
-                    case 'bot_message':
-                    case 'pinned_item':
-                    case 'unpinned_item':
-                        // ignore
-                        break;
+                if (!data.subtype) {
+                    var botLink = '<@' + bot.self.id + '>';
+                    if (botLink == data.text.substr(0, botLink.length)) {
+                        botCommand(bot, channel, data.text);
+                    }
+                    else {
+                        hubUserMessage(bot, channel, user, data.text);
+                    }
+                    break;
+                }
 
+                switch (data.subtype) {
                     case 'me_message':
                         hubUserMessage(bot, channel, user, italicText(data.text));
                         break;
@@ -102,8 +107,7 @@ function startHubBot(hub, token) {
                         break;
 
                     case 'file_comment':
-                        //hubBotMessage(bot, channel, data.text);
-                        //hubUserMessage(bot, channel, user, data.text);
+                        // not implemented
                         break;
 
                     case 'message_chaned':
@@ -111,21 +115,12 @@ function startHubBot(hub, token) {
                         botMessage(bot, channel, 'The message is still remained in the other teams.');
                         break;
 
-                    default:
-                        if (data.subtype) {
-                            if (data.text) {
-                                hubBotMessage(bot, channel, data.text);
-                            }
-                        }
-                        else {
-                            var botLink = '<@' + bot.self.id + '>';
-                            if (botLink == data.text.substr(0, botLink.length)) {
-                                botCommand(bot, channel, data.text);
-                            }
-                            else {
-                                hubUserMessage(bot, channel, user, data.text);
-                            }
-                            break;
+                    case 'channel_join':
+                    case 'channel_leave':
+                    case 'group_join':
+                    case 'group_leave':
+                        if (data.text) {
+                            hubBotMessage(bot, channel, data.text);
                         }
                         break;
                 }
