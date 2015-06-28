@@ -29,14 +29,14 @@ SlackBot.prototype.rtmStart = function() {
         this.channelIdMap = {};
         this.channelNameMap = {};
 
-        mapFromArray(this.userIdMap, 'id', data.users);
-        mapFromArray(this.userNameMap, 'name', data.users);
-        mapFromArray(this.userIdMap, 'id', data.bots);
-        mapFromArray(this.userNameMap, 'name', data.bots);
-        mapFromArray(this.channelIdMap, 'id', data.channels);
-        mapFromArray(this.channelNameMap, 'name', data.channels);
-        mapFromArray(this.channelIdMap, 'id', data.groups);
-        mapFromArray(this.channelNameMap, 'name', data.groups);
+        buildMapFromArray(this.userIdMap, 'id', data.users);
+        buildMapFromArray(this.userNameMap, 'name', data.users);
+        buildMapFromArray(this.userIdMap, 'id', data.bots);
+        buildMapFromArray(this.userNameMap, 'name', data.bots);
+        buildMapFromArray(this.channelIdMap, 'id', data.channels);
+        buildMapFromArray(this.channelNameMap, 'name', data.channels);
+        buildMapFromArray(this.channelIdMap, 'id', data.groups);
+        buildMapFromArray(this.channelNameMap, 'name', data.groups);
 
         try {
             this.emit('start');
@@ -54,9 +54,15 @@ SlackBot.prototype.connect = function() {
     this.ws.on('message', function(data) {
         try {
             data = JSON.parse(data);
-            console.log(this.tag(), '<<<', data.type, data);
             this.updateData(data);
-            this.emit('event', data);
+            if (data.reply_to) {
+                console.log(this.tag(), '<<<', 'reply', data);
+                this.emit('reply', data);
+            }
+            else {
+                console.log(this.tag(), '<<<', data.type, data);
+                this.emit('event', data);
+            }
         } catch (e) {
             console.log(this.tag(), '!!!', e);
         }
@@ -65,7 +71,6 @@ SlackBot.prototype.connect = function() {
 
 SlackBot.prototype.updateData = function(data) {
     var channel = this.getChannel(data);
-
     switch (data.type) {
         case 'team_rename':
             this.team.name = data.name;
@@ -88,34 +93,40 @@ SlackBot.prototype.updateData = function(data) {
             break;
 
         case 'channel_left':
+            var channel = this.channelIdMap[data.channel];
             channel.is_member = false;
             var i = channel.members.indexOf(this.self.id);
             channel.members.slice(i, 1);
             break;
 
         case 'group_left':
+            var channel = this.channelIdMap[data.channel];
             this.channelIdMap[channel.id] = null;
             this.channelNameMap[channel.name] = null;
             break;
 
         case 'channel_rename':
         case 'group_rename':
+            var channel = this.channelIdMap[data.channel.id];
             this.channelNameMap[channel.name] = null;
             this.channelNameMap[data.channel.name] = channel;
             break;
 
         case 'channel_archived':
         case 'group_archived':
+            var channel = this.channelIdMap[data.channel];
             this.channel.is_archived = true;
             break;
 
         case 'channel_unarchived':
         case 'group_unarchived':
+            var channel = this.channelIdMap[data.channel];
             this.channel.is_archived = false;
             break;
 
         case 'channel_deleted':
         case 'group_close':
+            var channel = this.channelIdMap[data.channel];
             this.channelIdMap[channel.id] = null;
             this.channelNameMap[channel.name] = null;
             break;
@@ -138,39 +149,39 @@ SlackBot.prototype.updateData = function(data) {
             switch (data.subtype) {
                 case 'channel_join':
                 case 'group_join':
-                    var userId = extractUserId(data.text);
-                    channel.members.push(userId);
+                    var channel = this.channelIdMap[data.channel];
+                    channel.members.push(data.user);
                     break;
 
                 case 'channel_leave':
                 case 'group_leave':
-                    var userId = extractUserId(data.text);
-                    var i = channel.members.indexOf(userId);
+                    var channel = this.channelIdMap[data.channel];
+                    var i = channel.members.indexOf(data.user);
                     channel.members.slice(i, 1);
                     break;
             }
     }
 
     if (typeof data.user == 'object') {
-        if (!updateMapData(this.userIdMap, data.user.id, data.user)) {
+        if (!updateMapFromData(this.userIdMap, 'id', data.user)) {
             this.userIdMap[data.user.id] = data.user;
             this.userNameMap[data.user.name] = data.user;
         }
     }
     if (typeof data.bot == 'object') {
-        if (!updateMapData(this.userIdMap, data.bot.id, data.bot)) {
+        if (!updateMapFromData(this.userIdMap, 'id', data.bot)) {
             this.userIdMap[data.bot.id] = data.bot;
             this.userNameMap[data.bot.name] = data.bot;
         }
     }
     if (typeof data.channel == 'object') {
-        if (!updateMapData(this.channelIdMap, data.channel.id, data.channel)) {
+        if (!updateMapFromData(this.channelIdMap, 'id', data.channel)) {
             this.channelIdMap[data.channel.id] = data.channel;
             this.channelNameMap[data.channel.name] = data.channel;
         }
     }
     if (typeof data.group == 'object') {
-        if (!updateMapData(this.channelIdMap, data.channel.id, data.channel)) {
+        if (!updateMapFromData(this.channelIdMap, 'id', data.channel)) {
             this.channelIdMap[data.group.id] = data.group;
             this.channelNameMap[data.group.name] = data.group;
         }
@@ -205,6 +216,19 @@ SlackBot.prototype.getUser = function(data) {
     else if (data.bot) {
         return this.userIdMap[data.bot];
     }
+}
+
+SlackBot.prototype.isMemberOf = function(channel) {
+    if (channel) {
+        if (channel.members.indexOf(this.self.id) > -1) {
+            return true;
+        }
+    }
+    return false;
+}
+
+SlackBot.prototype.isUser = function(user) {
+    return (user && user.id == this.self.id);
 }
 
 SlackBot.prototype.send = function(type, payload) {
@@ -250,35 +274,27 @@ function find(array, params) {
     }
 }
 
-function mapFromArray(map, keyname, array) {
+function buildMapFromArray(map, keyname, array) {
     for (var i in array) {
         var item = array[i];
         map[item[keyname]] = item;
     }
 }
 
-function updateMapData(map, key, data) {
-    var mapData = map[key];
-    if (mapData) {
-        for (var i in data) {
-            mapData[i] = data[i];
-        }
-        return true;
-    }
+function updateMapFromData(map, keyname, data) {
+    var mapData = map[data[keyname]];
+    return mergeData(mapData, data);
 }
 
-function extractUserId(text) {
-    var left = text.indexOf('<@');
-    if (left < 0) {
-        return;
+function mergeData(lhs, rhs) {
+    if (!lhs) {
+        return false;
     }
 
-    var right = text.indexOf('|', left + 2);
-    if (right < 0) {
-        return;
+    for (var i in rhs) {
+        lhs[i] = rhs[i];
     }
-
-    return text.substring(left + 2, right);
+    return true;
 }
 
 module.exports = SlackBot;

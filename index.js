@@ -70,7 +70,7 @@ function startHubBot(hub, token) {
                 break;
 
             case 'message':
-                if (!isBotInChannel(bot, channel) || isUserABot(user, bot)) {
+                if (!bot.isMemberOf(channel) || bot.isUser(user)) {
                     break;
                 }
 
@@ -137,13 +137,13 @@ function botCommand(bot, channel, text) {
         case 'teams':
             var teamNames = makeHubTeamNames(bot, channel);
             var be = (teamNames.indexOf(',') > 0) ? ' are' : ' is';
-            botMessage(bot, channel, 'Team ' + teamNames + be + ' in the channel');
+            botMessage(bot, channel, 'Team ' + teamNames + be + ' in #' + channel.name);
             break;
 
         case 'members':
             var userNames = makeHubUserNames(bot, channel);
             var be = (userNames.indexOf(',') > 0) ? ' are' : ' is';
-            botMessage(bot, channel, userNames + be + ' in the channel');
+            botMessage(bot, channel, userNames + be + ' in #' + channel.name);
             break;
 
         default:
@@ -187,19 +187,6 @@ function makeHubUserNames(bot, channel) {
     }
 
     return userNames;
-}
-
-function isBotInChannel(bot, channel) {
-    if (channel && channel.members) {
-        if (channel.members.indexOf(bot.self.id) > -1) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function isUserABot(user, bot) {
-    return (user && user.id == bot.self.id);
 }
 
 function italicText(text) {
@@ -328,7 +315,7 @@ function foreachHubBots(bot, channelName, func) {
         }
 
         var outChannel = hubBot.channelNameMap[channelName];
-        if (!isBotInChannel(hubBot, outChannel)) {
+        if (!hubBot.isMemberOf(outChannel)) {
             continue;
         }
 
