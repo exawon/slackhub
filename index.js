@@ -25,17 +25,13 @@ app.listen(app.get('port'), function() {
   console.log(package.name + ' ' + package.version + ' is running on port', app.get('port'));
 });
 
-var hubMap = {};
 for (var i in config.hubs) {
     var hub = config.hubs[i];
     hub.bots = [];
-    hubMap[hub.id] = hub;
-}
 
-for (var i in config.bots) {
-    var bot = config.bots[i];
-    var hub = hubMap[bot.hub_id];
-    startHubBot(hub, bot.token);
+    for (var j in hub.tokens) {
+        startHubBot(hub, hub.tokens[j]);
+    }
 }
 
 function startHubBot(hub, token) {

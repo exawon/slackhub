@@ -1,36 +1,21 @@
 {
     "hubs": [
         {
-            "id" : "1",
-            "name": "big one",
-            "owner": "email@address.com"
+            "name": "one",
+            "owner": "email@address.com",
+            "tokens": [
+                "xxx-xxxx-xxxx",
+                "xxx-xxxx-xxxx",
+            ]
         },
         {
-            "id" : "2",
-            "name": "small one",
-            "owner": "email@address.com"
-        }
-    ],
-    "bots": [
-        {
-            "token": "xxx-xxxx-xxxx",
-            "hub_id": "1"
-        },
-        {
-            "token": "xxx-xxxx-xxxx",
-            "hub_id": "1"
-        },
-        {
-            "token": "xxx-xxxx-xxxx",
-            "hub_id": "1"
-        },
-        {
-            "token": "xxx-xxxx-xxxx",
-            "hub_id": "2"
-        },
-        {
-            "token": "xxx-xxxx-xxxx",
-            "hub_id": "2"
+            "name": "two",
+            "owner": "email@address.com",
+            "tokens": [
+                "xxx-xxxx-xxxx",
+                "xxx-xxxx-xxxx",
+                "xxx-xxxx-xxxx"
+            ]
         }
     ]
 }
