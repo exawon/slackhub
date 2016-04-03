@@ -15,16 +15,6 @@ function readJsonFile(fileName) {
     }
 }
 
-var app = express();
-app.set('port', (process.env.PORT || 8989));
-app.all('/', function (req, res) {
-    res.send(package.name + ' ' + package.version);
-});
-
-app.listen(app.get('port'), function() {
-  console.log(package.name + ' ' + package.version + ' is running on port', app.get('port'));
-});
-
 for (var i in config.hubs) {
     var hub = config.hubs[i];
     hub.bots = [];
@@ -91,11 +81,8 @@ function startHubBot(hub, token) {
                         break;
 
                     case 'file_mention':
-                        // not implemented
-                        break;
-
                     case 'file_comment':
-                        // not implemented
+                        botMessage(bot, channel, 'The message for file is not supported yet.');
                         break;
 
                     case 'message_chaned':
@@ -300,13 +287,15 @@ function hubUserMessage(bot, channelName, user, text) {
             unfurl_media: true,
             icon_url: user.profile.image_48
         });
+        
+       hubBot.api('chat.postMessage', message);
     });
 }
 
 function foreachHubBots(bot, channelName, func) {
     for (var i in bot.hub.bots) {
         var hubBot = bot.hub.bots[i];
-        if (!hubBot.ws || hubBot == bot) {
+        if (hubBot == bot) {
             continue;
         }
 

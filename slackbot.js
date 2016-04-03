@@ -286,13 +286,13 @@ function updateMapFromData(map, keyname, data) {
     return mergeData(mapData, data);
 }
 
-function mergeData(lhs, rhs) {
-    if (!lhs) {
+function mergeData(to, from) {
+    if (!to || !from) {
         return false;
     }
 
-    for (var i in rhs) {
-        lhs[i] = rhs[i];
+    for (var i in from) {
+        to[i] = from[i];
     }
     return true;
 }
