@@ -1,3 +1,5 @@
+# This preject is deprecated. Slack has thier own feature currently. https://slackhq.com/introducing-shared-channels-where-you-can-work-with-anyone-in-slack-8c5d2a943f57
+
 # SlackHub
 
 SlackHub is a [bot user](https://api.slack.com/bot-users) for [Slack](http://slack.com) using [RTM API](https://api.slack.com/rtm).  
